@@ -1,0 +1,22 @@
+{
+    "paths": {
+        "CryptoJS": "/SuiteScripts/aws/cryptojs-core",
+        "SHA256": "/SuiteScripts/aws/cryptojs-sha256",
+        "HMAC": "/SuiteScripts/aws/cryptojs-hmac",
+        "Base64": "/SuiteScripts/aws/cryptojs-enc-base64"
+    },
+    "shim": {
+        "CryptoJS": {
+            "exports": "CryptoJS"
+        },
+        "SHA256": {
+            "exports": "SHA256"
+        },
+        "HMAC": {
+            "exports": "HMAC"
+        },
+        "Base64": {
+            "exports": "Base64"
+        }
+    }
+}
