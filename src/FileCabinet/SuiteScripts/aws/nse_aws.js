@@ -288,14 +288,9 @@
     /**
      * Sends request to AWS S3 API. PutObject supports text files only because AWS does not convert base64 to binary after receiving data.
      * 
-     * @param {object} options Details of the S3 request
-     * @param {string} options.bucketName S3 Bucket name
-     * @param {string} options.action S3 API Action
-     * @param {string} options.prefix prefix parameter for ListObjectsV2
-     * @param {string} options.startAfter start-after parameter for ListObjectsV2
-     * @param {string} options.objectKey Key of the S3 object. For PutObject requests, it is retrieved from options.FileObject.name
-     * @param {file.File} options.fileObject File to be upladed to S3
-     * @param {string} options.payload Payload required to calculate Hash. For PutObject, it is retrieved from options.FileObject.getContents()
+     * @param {object} options Details of the Secrets Manager request
+     * @param {string} secretId Secret name
+     * @param {string} options.payload Payload required to calculate Hash. SecretId is set to the payload.
      * @param {AwsUrl} options.awsRegion AWS Region
      * @param {string} options.accessKey Access Key of the AWS user
      * @param {string} options.secretKey SecretKey of the AWS user
