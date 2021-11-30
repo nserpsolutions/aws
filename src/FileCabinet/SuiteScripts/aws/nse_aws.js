@@ -286,7 +286,7 @@
     }
 
     /**
-     * Sends request to AWS S3 API. PutObject supports text files only because AWS does not convert base64 to binary after receiving data.
+     * Sends request to AWS Secrets Manager API. 
      * 
      * @param {object} options Details of the Secrets Manager request
      * @param {string} secretId Secret name
