@@ -75,7 +75,12 @@
                 returnData.host = `${options.bucketName}.${options.awsService}.${options.awsRegion}.${AWS_DOMAIN}`;
                 returnData.canonicalUri = `/${options.objectKey ? options.objectKey : ''}`;
                 break;
+            case 'secretsmanager':
+                returnData.host = `${options.awsService}.${options.awsRegion}.${AWS_DOMAIN}`;
+                returnData.canonicalUri = `/`;
+                break;
         }
+
 
         options.requestParams.sort((a, b) => a.name > b.name ? 1 : -1);
         options.requestParams.forEach(({name, value}) => {
@@ -154,7 +159,7 @@
      */
     const sqsRequests = (options) => {
         const SERVICE_NAME = 'sqs';
-        const HTTP_METHOD = 'GET'
+        const HTTP_METHOD = 'GET';
         let requestParams = [
             {name: 'Action', value: options.action},
             {name: 'Version', value: '2012-11-05'}
@@ -223,7 +228,7 @@
      */
     const s3Requests = (options) => {
         const SERVICE_NAME = 's3';
-        let httpMethod = 'GET'
+        let httpMethod = 'GET';
         let requestParams = [];
         let requestOptions = {};
         let requestHeaders = {};
@@ -280,8 +285,74 @@
         return https.request(requestOptions);
     }
 
+    /**
+     * Sends request to AWS S3 API. PutObject supports text files only because AWS does not convert base64 to binary after receiving data.
+     * 
+     * @param {object} options Details of the S3 request
+     * @param {string} options.bucketName S3 Bucket name
+     * @param {string} options.action S3 API Action
+     * @param {string} options.prefix prefix parameter for ListObjectsV2
+     * @param {string} options.startAfter start-after parameter for ListObjectsV2
+     * @param {string} options.objectKey Key of the S3 object. For PutObject requests, it is retrieved from options.FileObject.name
+     * @param {file.File} options.fileObject File to be upladed to S3
+     * @param {string} options.payload Payload required to calculate Hash. For PutObject, it is retrieved from options.FileObject.getContents()
+     * @param {AwsUrl} options.awsRegion AWS Region
+     * @param {string} options.accessKey Access Key of the AWS user
+     * @param {string} options.secretKey SecretKey of the AWS user
+     * @returns {https.ServerResponse} Response of the SQS request
+     */
+     const secretsManagerRequests = (options) => {
+        const SERVICE_NAME = 'secretsmanager';
+        let httpMethod = 'POST';
+        let requestParams = [];
+        let requestOptions = {};
+        let requestHeaders = {
+            "X-Amz-Target": `secretsmanager.${options.action}`,
+            "Content-Type": "application/x-amz-json-1.1"
+        };
+        requestOptions.body = options.payload = `{"SecretId": "${options.secretId}"}`;
+
+        switch (options.action) {
+            case 'GetSecretValue':
+                break;
+            case 'DescribeSecret': 
+                break;
+        }
+        requestOptions.method = httpMethod;
+
+        const awsUrl = generateAwsUrl({
+            awsService: SERVICE_NAME,
+            awsRegion: options.awsRegion,
+            requestParams: requestParams
+        });
+        requestOptions.url = `https://${awsUrl.host}${awsUrl.canonicalUri}`;
+
+        const xAmzDate = getXAmzDate();
+        requestHeaders['host'] = awsUrl.host;
+        requestHeaders['x-amz-date'] = xAmzDate
+        requestHeaders['Authorization'] = createAuthorizationHeader({
+            payload: options.payload,
+            awsUrl: awsUrl,
+            xAmzDate: xAmzDate,
+            awsRegion: options.awsRegion,
+            awsService: SERVICE_NAME,
+            httpMethod: httpMethod,
+            secretKey: options.secretKey,
+            accessKey: options.accessKey,
+            requestHeaders: requestHeaders
+        });
+        requestHeaders['Accept'] = 'application/json';
+        requestHeaders['Content-Length'] = requestOptions.body.length;
+
+        requestOptions.headers = requestHeaders;
+
+        log.debug('requestOptions', requestOptions);
+        return https.request(requestOptions);
+    }
+
     return {
         s3Requests, 
-        sqsRequests
+        sqsRequests,
+        secretsManagerRequests
     }
 });

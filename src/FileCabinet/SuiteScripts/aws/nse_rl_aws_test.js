@@ -6,7 +6,7 @@
 
 define(['N/file', './nse_aws'], (file, nseAws) => {
     const get = () => {
-        return JSON.stringify(nseAws.s3Requests({
+        return JSON.stringify(nseAws.secretsManagerRequests({
             awsRegion: 'eu-central-1',
             accountId: '',
             bucketName: 'nserp-s3',
@@ -15,7 +15,8 @@ define(['N/file', './nse_aws'], (file, nseAws) => {
             secretKey: '',
             accessKey: '',
             message: '',
-            action: 'PutObject',
+            secretId: 'nserp-secret',
+            action: 'DescribeSecret',
             //objectKey: 'file.txt',
             fileObject: file.load({id: 10976})
         }));
