@@ -79,6 +79,10 @@
                 returnData.host = `${options.awsService}.${options.awsRegion}.${AWS_DOMAIN}`;
                 returnData.canonicalUri = `/`;
                 break;
+            case 'sts':
+                returnData.host = `${options.awsService}.${options.awsRegion}.${AWS_DOMAIN}`;
+                returnData.canonicalUri = `/`;
+                break;
         }
 
 
@@ -153,8 +157,9 @@
      * @param {string} options.awsRegion AWS Region
      * @param {string} options.accountId AWS Account ID
      * @param {string} options.payload Payload required to calculate Hash
-     * @param {string} options.accessKey Access Key of the AWS user
-     * @param {string} options.secretKey SecretKey of the AWS user
+     * @param {string} options.accessKey Access Key of the AWS user or from the STS request
+     * @param {string} options.secretKey SecretKey of the AWS user or from the STS request
+     * @param {string} options.sessionToken Token received from STS request
      * @returns {https.ServerResponse} Response of the SQS request
      */
     const sqsRequests = (options) => {
@@ -165,6 +170,9 @@
             {name: 'Version', value: '2012-11-05'}
         ];
         let requestHeaders = {};
+        if (options.sessionToken) {
+            requestHeaders['X-Amz-Security-Token'] = options.sessionToken;
+        }
 
         switch (options.action) {
             case 'ReceiveMessage':
@@ -222,8 +230,9 @@
      * @param {file.File} options.fileObject File to be upladed to S3
      * @param {string} options.payload Payload required to calculate Hash. For PutObject, it is retrieved from options.FileObject.getContents()
      * @param {AwsUrl} options.awsRegion AWS Region
-     * @param {string} options.accessKey Access Key of the AWS user
-     * @param {string} options.secretKey SecretKey of the AWS user
+     * @param {string} options.accessKey Access Key of the AWS user or from the STS request
+     * @param {string} options.secretKey SecretKey of the AWS user or from the STS request
+     * @param {string} options.sessionToken Token received from STS request
      * @returns {https.ServerResponse} Response of the SQS request
      */
     const s3Requests = (options) => {
@@ -232,6 +241,9 @@
         let requestParams = [];
         let requestOptions = {};
         let requestHeaders = {};
+        if (options.sessionToken) {
+            requestHeaders['X-Amz-Security-Token'] = options.sessionToken;
+        }
 
         switch (options.action) {
             case 'ListObjectsV2':
@@ -289,11 +301,13 @@
      * Sends request to AWS Secrets Manager API. 
      * 
      * @param {object} options Details of the Secrets Manager request
-     * @param {string} secretId Secret name
+     * @param {string} options.action Secrets Manager API action
+     * @param {string} options.secretId Secret name
      * @param {string} options.payload Payload required to calculate Hash. SecretId is set to the payload.
      * @param {AwsUrl} options.awsRegion AWS Region
-     * @param {string} options.accessKey Access Key of the AWS user
-     * @param {string} options.secretKey SecretKey of the AWS user
+     * @param {string} options.accessKey Access Key of the AWS user or from the STS request
+     * @param {string} options.secretKey SecretKey of the AWS user or from the STS request
+     * @param {string} options.sessionToken Token received from STS request
      * @returns {https.ServerResponse} Response of the SQS request
      */
      const secretsManagerRequests = (options) => {
@@ -306,6 +320,10 @@
             "Content-Type": "application/x-amz-json-1.1"
         };
         requestOptions.body = options.payload = `{"SecretId": "${options.secretId}"}`;
+
+        if (options.sessionToken) {
+            requestHeaders['X-Amz-Security-Token'] = options.sessionToken;
+        }
 
         switch (options.action) {
             case 'GetSecretValue':
@@ -341,6 +359,68 @@
 
         requestOptions.headers = requestHeaders;
 
+        return https.request(requestOptions);
+    }
+
+    /**
+     * Sends request to AWS Security Token Service API. 
+     * 
+     * @param {object} options Details of the STS request
+     * @param {string} options.action STS API action
+     * @param {string} options.roleArn ARN of the role
+     * @param {string} options.roleSessionName Role Session Name
+     * @param {number} options.duration Token validity in seconds
+     * @param {string} options.payload Payload required to calculate Hash. SecretId is set to the payload.
+     * @param {AwsUrl} options.awsRegion AWS Region
+     * @param {string} options.accessKey Access Key of the AWS user
+     * @param {string} options.secretKey SecretKey of the AWS user
+     * @returns {https.ServerResponse} Response of the SQS request
+     */
+     const stsRequests = (options) => {
+        const SERVICE_NAME = 'sts';
+        let httpMethod = 'GET';
+        let requestParams = [];
+        let requestOptions = {};
+        let requestHeaders = {
+            "Content-Type": "application/x-amz-json-1.1"
+        };
+        requestParams.push({name: 'Version', value: '2011-06-15'});
+        requestParams.push({name: 'Action', value: options.action});
+
+        switch (options.action) {
+            case 'AssumeRole':
+                requestParams.push({name: 'RoleArn', value: options.roleArn});
+                requestParams.push({name: 'RoleSessionName', value: options.roleSessionName});
+                requestParams.push({name: 'DurationSeconds', value: options.duration});
+                break;
+        }
+        requestOptions.method = httpMethod;
+
+        const awsUrl = generateAwsUrl({
+            awsService: SERVICE_NAME,
+            awsRegion: options.awsRegion,
+            requestParams: requestParams
+        });
+        requestOptions.url = `https://${awsUrl.host}${awsUrl.canonicalUri}?${awsUrl.canonicalQueryString}`;
+
+        const xAmzDate = getXAmzDate();
+        requestHeaders['host'] = awsUrl.host;
+        requestHeaders['x-amz-date'] = xAmzDate
+        requestHeaders['Authorization'] = createAuthorizationHeader({
+            payload: options.payload,
+            awsUrl: awsUrl,
+            xAmzDate: xAmzDate,
+            awsRegion: options.awsRegion,
+            awsService: SERVICE_NAME,
+            httpMethod: httpMethod,
+            secretKey: options.secretKey,
+            accessKey: options.accessKey,
+            requestHeaders: requestHeaders
+        });
+        requestHeaders['Accept'] = 'application/json';
+
+        requestOptions.headers = requestHeaders;
+
         log.debug('requestOptions', requestOptions);
         return https.request(requestOptions);
     }
@@ -348,6 +428,7 @@
     return {
         s3Requests, 
         sqsRequests,
-        secretsManagerRequests
+        secretsManagerRequests,
+        stsRequests
     }
 });
