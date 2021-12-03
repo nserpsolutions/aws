@@ -55,6 +55,7 @@
      * @param {string} options.accountId AWS Account ID
      * @param {string} options.queueName SQS Queue Name
      * @param {string} options.bucketName S3 Bucket Name
+     * @param {string} options.folderPath S3 Folder Path
      * @param {string} options.objectKey S3 Object Key
      * @param {{string, string}[]} options.requestParams 
      * @returns {AwsUrl} AwsUrl object
@@ -73,7 +74,7 @@
                 break;
             case 's3': 
                 returnData.host = `${options.bucketName}.${options.awsService}.${options.awsRegion}.${AWS_DOMAIN}`;
-                returnData.canonicalUri = `/${options.objectKey ? options.objectKey : ''}`;
+                returnData.canonicalUri = `/${options.folderPath ? options.folderPath : ''}${options.objectKey ? options.objectKey : ''}`;
                 break;
             case 'secretsmanager':
                 returnData.host = `${options.awsService}.${options.awsRegion}.${AWS_DOMAIN}`;
@@ -227,13 +228,14 @@
      * @param {string} options.prefix prefix parameter for ListObjectsV2
      * @param {string} options.startAfter start-after parameter for ListObjectsV2
      * @param {string} options.objectKey Key of the S3 object. For PutObject requests, it is retrieved from options.FileObject.name
+     * @param {string} options.folderPath Folder of the S3 object. It should end with / character. For ListObjectsV2, use prefix parameter instead.
      * @param {file.File} options.fileObject File to be upladed to S3
      * @param {string} options.payload Payload required to calculate Hash. For PutObject, it is retrieved from options.FileObject.getContents()
      * @param {AwsUrl} options.awsRegion AWS Region
      * @param {string} options.accessKey Access Key of the AWS user or from the STS request
      * @param {string} options.secretKey SecretKey of the AWS user or from the STS request
      * @param {string} options.sessionToken Token received from STS request
-     * @returns {https.ServerResponse} Response of the SQS request
+     * @returns {https.ServerResponse} Response of the S3 request
      */
     const s3Requests = (options) => {
         const SERVICE_NAME = 's3';
@@ -271,6 +273,7 @@
             awsService: SERVICE_NAME,
             awsRegion: options.awsRegion,
             bucketName: options.bucketName,
+            folderPath: options.folderPath,
             objectKey: options.objectKey ? options.objectKey : null,
             requestParams: requestParams
         });
@@ -308,7 +311,7 @@
      * @param {string} options.accessKey Access Key of the AWS user or from the STS request
      * @param {string} options.secretKey SecretKey of the AWS user or from the STS request
      * @param {string} options.sessionToken Token received from STS request
-     * @returns {https.ServerResponse} Response of the SQS request
+     * @returns {https.ServerResponse} Response of the Secrets Manager request
      */
      const secretsManagerRequests = (options) => {
         const SERVICE_NAME = 'secretsmanager';
@@ -374,7 +377,7 @@
      * @param {AwsUrl} options.awsRegion AWS Region
      * @param {string} options.accessKey Access Key of the AWS user
      * @param {string} options.secretKey SecretKey of the AWS user
-     * @returns {https.ServerResponse} Response of the SQS request
+     * @returns {https.ServerResponse} Response of the STS request
      */
      const stsRequests = (options) => {
         const SERVICE_NAME = 'sts';
