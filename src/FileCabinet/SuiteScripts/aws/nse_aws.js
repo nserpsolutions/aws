@@ -306,6 +306,7 @@
      * @param {object} options Details of the Secrets Manager request
      * @param {string} options.action Secrets Manager API action
      * @param {string} options.secretId Secret name
+     * @param {string} options.secretString Stringified key value pairs of secret value. Double quotes must be escaped.
      * @param {string} options.payload Payload required to calculate Hash. SecretId is set to the payload.
      * @param {AwsUrl} options.awsRegion AWS Region
      * @param {string} options.accessKey Access Key of the AWS user or from the STS request
@@ -322,7 +323,6 @@
             "X-Amz-Target": `secretsmanager.${options.action}`,
             "Content-Type": "application/x-amz-json-1.1"
         };
-        requestOptions.body = options.payload = `{"SecretId": "${options.secretId}"}`;
 
         if (options.sessionToken) {
             requestHeaders['X-Amz-Security-Token'] = options.sessionToken;
@@ -330,8 +330,13 @@
 
         switch (options.action) {
             case 'GetSecretValue':
+                requestOptions.body = options.payload = `{"SecretId": "${options.secretId}"}`;
                 break;
             case 'DescribeSecret': 
+                requestOptions.body = options.payload = `{"SecretId": "${options.secretId}"}`;
+                break;
+            case 'PutSecretValue':
+                requestOptions.body = options.payload = `{"SecretId": "${options.secretId}", "SecretString": "${options.secretString}", "ClientRequestToken": "${createUuid()}"}`;
                 break;
         }
         requestOptions.method = httpMethod;
@@ -424,8 +429,17 @@
 
         requestOptions.headers = requestHeaders;
 
-        log.debug('requestOptions', requestOptions);
         return https.request(requestOptions);
+    }
+
+    function createUuid(){
+        var dt = new Date().getTime();
+        var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = (dt + Math.random()*16)%16 | 0;
+            dt = Math.floor(dt/16);
+            return (c=='x' ? r :(r&0x3|0x8)).toString(16);
+        });
+        return uuid;
     }
 
     return {
