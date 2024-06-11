@@ -4,7 +4,7 @@
  * @NAmdConfig ./aws_config.json
  */
 
- define(['N/file', './rds_aws'], (file, nseAws) => {
+ define(['N/file', './nse_aws'], (file, nseAws) => {
     const get = () => {
         const stsAssumeRoleResponse = nseAws.stsRequests({
             awsRegion: 'eu-central-1',
